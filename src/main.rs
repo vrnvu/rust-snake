@@ -40,7 +40,7 @@ fn run_game(stdout: &mut std::io::Stdout, player_name: String) -> std::io::Resul
     execute!(stdout, terminal::Clear(terminal::ClearType::All))?;
     execute!(stdout, cursor::Hide)?;
 
-    let game_frame = GameGrid::new(GAME_WIDTH, HEIGHT);
+    let game_grid = GameGrid::new(GAME_WIDTH, HEIGHT);
     let mut state = GameState::new(GAME_WIDTH, HEIGHT);
     let mut side_panel = SidePanel::new(GAME_WIDTH, HEIGHT, PANEL_WIDTH, player_name);
 
@@ -95,7 +95,7 @@ fn run_game(stdout: &mut std::io::Stdout, player_name: String) -> std::io::Resul
         state.next(game_action);
         side_panel.update_score(state.score);
 
-        game_frame.queue(stdout)?;
+        game_grid.queue(stdout)?;
         side_panel.queue(stdout)?;
         state.queue(stdout)?;
         stdout.flush()?;
