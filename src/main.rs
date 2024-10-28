@@ -4,7 +4,7 @@ use crossterm::{
     execute, terminal,
 };
 use rust_snake::{
-    game::{Direction, GameGrid, GameState},
+    game::{Action, Direction, GameGrid, GameState},
     menu,
     menu::SidePanel,
 };
@@ -84,7 +84,7 @@ fn run_game(stdout: &mut std::io::Stdout, player_name: String) -> std::io::Resul
             }
         }
 
-        let game_action = user_input.and_then(|code| match code {
+        let direction = user_input.and_then(|code| match code {
             KeyCode::Up => Some(Direction::Up),
             KeyCode::Down => Some(Direction::Down),
             KeyCode::Left => Some(Direction::Left),
@@ -92,7 +92,13 @@ fn run_game(stdout: &mut std::io::Stdout, player_name: String) -> std::io::Resul
             _ => None,
         });
 
-        state.next(game_action);
+        let action = Action::new(
+            state.snake.head,
+            direction,
+            state.snake.head == state.food.position,
+        );
+
+        state.next(action);
         side_panel.update_score(state.score);
 
         game_grid.queue(stdout)?;

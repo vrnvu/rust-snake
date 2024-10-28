@@ -16,6 +16,7 @@ pub struct GameState {
     pub score: u32,
     pub game_width: u16,
     pub game_height: u16,
+    pub actions: Vec<Action>,
 }
 
 impl GameState {
@@ -30,24 +31,37 @@ impl GameState {
             score,
             game_width,
             game_height,
+            actions: Vec::new(),
         }
     }
 
     pub fn queue(&self, stdout: &mut io::Stdout) -> io::Result<()> {
-        self.snake.queue(stdout)?;
         self.food.queue(stdout)?;
+        self.snake.queue(stdout)?;
         Ok(())
     }
 
-    pub fn next(&mut self, action: Option<Direction>) {
-        if let Some(direction) = action {
+    pub fn next(&mut self, action: Action) {
+        if let Some(direction) = action.direction {
             self.snake.direction = direction;
         }
 
-        self.snake.move_direction();
+        self.actions.push(action);
 
-        if self.snake.head == self.food.position {
-            self.snake.grow = true;
+        match self.snake.direction {
+            Direction::Up => self.snake.head.y -= 1,
+            Direction::Down => self.snake.head.y += 1,
+            Direction::Left => self.snake.head.x -= 1,
+            Direction::Right => self.snake.head.x += 1,
+        }
+
+        if !self.snake.tail.is_empty() {
+            self.snake.tail.push_front(action.head_pos);
+            self.snake.tail.pop_back();
+        }
+
+        if action.head_pos == self.food.position {
+            self.snake.tail.push_back(action.head_pos);
             self.food = Food::new(self.game_width, self.game_height);
             self.score += 1;
         }
@@ -97,7 +111,7 @@ pub enum Direction {
     Right,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Position {
     pub x: u16,
     pub y: u16,
@@ -113,12 +127,6 @@ impl Position {
     }
 }
 
-impl PartialEq for Position {
-    fn eq(&self, other: &Self) -> bool {
-        self.x == other.x && self.y == other.y
-    }
-}
-
 #[derive(Debug)]
 pub struct Snake {
     pub head: Position,
@@ -130,10 +138,7 @@ pub struct Snake {
 impl Snake {
     pub fn new(initial_x: u16, initial_y: u16) -> Self {
         Self {
-            head: Position {
-                x: initial_x,
-                y: initial_y,
-            },
+            head: Position::new(initial_x, initial_y),
             tail: VecDeque::new(),
             direction: Direction::Right,
             grow: false,
@@ -168,13 +173,10 @@ impl Snake {
             Direction::Right => self.head.x += 1,
         }
 
-        self.tail.push_front(old_head);
-
-        // TODO should be functional, probably no need for a state if we have actions
-        if !self.grow {
+        if !self.tail.is_empty() {
+            self.tail.push_front(old_head);
             self.tail.pop_back();
         }
-        self.grow = false;
     }
 
     pub fn self_collision(&self) -> bool {
@@ -206,5 +208,22 @@ impl Food {
             style::PrintStyledContent("●".with(theme::ACCENT).on(theme::BACKGROUND))
         )?;
         Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Action {
+    pub head_pos: Position,
+    pub direction: Option<Direction>,
+    pub did_grow: bool,
+}
+
+impl Action {
+    pub fn new(head_pos: Position, direction: Option<Direction>, did_grow: bool) -> Self {
+        Self {
+            head_pos,
+            direction,
+            did_grow,
+        }
     }
 }
