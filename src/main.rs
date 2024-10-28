@@ -77,6 +77,11 @@ fn run_game(stdout: &mut std::io::Stdout, player_name: String) -> std::io::Resul
                 if let Some(KeyCode::Char('s')) = user_input {
                     break;
                 }
+
+                if let Some(KeyCode::Char('b')) = user_input {
+                    // TODO
+                    println!("magic!");
+                }
             }
         }
 
