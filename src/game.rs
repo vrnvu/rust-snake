@@ -1,7 +1,6 @@
 use crossterm::{
-    cursor, execute, queue,
+    cursor, queue,
     style::{self, Stylize},
-    terminal,
 };
 use rand::Rng;
 use std::{
@@ -21,22 +20,16 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new(width: u16, height: u16) -> Self {
+    pub fn new(width: u16, panel_width: u16, height: u16, player_name: String) -> Self {
         Self {
             stdout: io::stdout(),
             width,
             height,
             snake: Snake::new(width / 2, height / 2),
             food: Food::new(width, height),
-            side_panel: SidePanel::new(width, height),
+            side_panel: SidePanel::new(width, height, panel_width, player_name),
             score: 0,
         }
-    }
-
-    pub fn init(&mut self) -> io::Result<()> {
-        execute!(self.stdout, terminal::Clear(terminal::ClearType::All))?;
-        execute!(self.stdout, cursor::Hide)?;
-        Ok(())
     }
 
     pub fn render(&mut self) -> io::Result<()> {
@@ -238,12 +231,12 @@ struct SidePanel {
 }
 
 impl SidePanel {
-    fn new(game_width: u16, height: u16) -> Self {
+    fn new(game_width_offset: u16, height: u16, panel_width: u16, player_name: String) -> Self {
         Self {
-            x: game_width + 2,
-            width: 15,
+            x: game_width_offset + 2,
+            width: panel_width,
             height,
-            player_row: InfoRow::new("PLAYER", "antoñito", 0),
+            player_row: InfoRow::new("PLAYER", &player_name, 0),
             score_row: InfoRow::new("SCORE", "0", 1),
             max_score_row: InfoRow::new("MAX SCORE", "25", 2), // TODO
         }
