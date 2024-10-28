@@ -51,7 +51,7 @@ fn run_game(stdout: &mut std::io::Stdout, player_name: String) -> std::io::Resul
         let frame_start = Instant::now();
 
         let new_direction = event::poll(Duration::from_millis(10))?
-            .then(|| event::read())
+            .then(event::read)
             .and_then(|result| result.ok())
             .and_then(|event| match event {
                 Event::Key(key_event) => Some(key_event.code),

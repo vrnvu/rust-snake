@@ -5,7 +5,7 @@ use crossterm::{
 use rand::Rng;
 use std::{
     collections::VecDeque,
-    io::{self, Write},
+    io::{self},
 };
 
 use crate::theme;

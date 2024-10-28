@@ -6,7 +6,7 @@ use crossterm::{
     style::{Print, PrintStyledContent, Stylize},
     terminal,
 };
-use std::io::{stdout, Write};
+use std::io::Write;
 
 pub struct InputInfoRow {
     pub label: String,
