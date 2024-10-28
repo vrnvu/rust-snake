@@ -4,7 +4,7 @@ use crossterm::{
     execute, terminal,
 };
 use rust_snake::{
-    game::{Direction, GameFrame, GameState},
+    game::{Direction, GameGrid, GameState},
     menu,
     menu::SidePanel,
 };
@@ -40,7 +40,7 @@ fn run_game(stdout: &mut std::io::Stdout, player_name: String) -> std::io::Resul
     execute!(stdout, terminal::Clear(terminal::ClearType::All))?;
     execute!(stdout, cursor::Hide)?;
 
-    let game_frame = GameFrame::new(GAME_WIDTH, HEIGHT);
+    let game_frame = GameGrid::new(GAME_WIDTH, HEIGHT);
     let mut state = GameState::new(GAME_WIDTH, HEIGHT);
     let mut side_panel = SidePanel::new(GAME_WIDTH, HEIGHT, PANEL_WIDTH, player_name);
 
