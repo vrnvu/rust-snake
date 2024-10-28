@@ -4,10 +4,11 @@ use crossterm::{
     execute, terminal,
 };
 use rust_snake::{
-    game::{Direction, Game},
+    game::{Direction, Food, GameFrame, SidePanel, Snake},
     menu,
 };
 use std::{
+    io::Write,
     thread,
     time::{Duration, Instant},
 };
@@ -18,12 +19,13 @@ const HEIGHT: u16 = 15;
 const FRAME_DURATION: Duration = Duration::from_millis(125); // 8 FPS
 
 fn main() -> std::io::Result<()> {
-    if let Some(player_name) = menu::show(GAME_WIDTH, PANEL_WIDTH, HEIGHT)? {
-        run_game(player_name)?;
+    let mut stdout = std::io::stdout();
+    if let Some(player_name) = menu::show(&mut stdout, GAME_WIDTH, PANEL_WIDTH, HEIGHT)? {
+        run_game(&mut stdout, player_name)?;
     }
 
     execute!(
-        std::io::stdout(),
+        stdout,
         terminal::Clear(terminal::ClearType::All),
         cursor::MoveTo(0, 0),
         cursor::Show
@@ -32,19 +34,24 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-fn run_game(player_name: String) -> std::io::Result<()> {
+fn run_game(stdout: &mut std::io::Stdout, player_name: String) -> std::io::Result<()> {
     terminal::enable_raw_mode()?;
-    execute!(std::io::stdout(), terminal::Clear(terminal::ClearType::All))?;
-    execute!(std::io::stdout(), cursor::Hide)?;
+    execute!(stdout, terminal::Clear(terminal::ClearType::All))?;
+    execute!(stdout, cursor::Hide)?;
 
-    let mut game = Game::new(GAME_WIDTH, PANEL_WIDTH, HEIGHT, player_name);
-    game.render()?;
+    let game_frame = GameFrame::new(GAME_WIDTH, HEIGHT);
+    let mut snake = Snake::new(GAME_WIDTH / 2, HEIGHT / 2);
+    let mut food = Food::new(GAME_WIDTH, HEIGHT);
+    let mut side_panel = SidePanel::new(GAME_WIDTH, HEIGHT, PANEL_WIDTH, player_name);
+    let mut score = 0;
+
+    game_frame.render(stdout)?;
 
     'game_loop: loop {
         let frame_start = Instant::now();
 
         let new_direction = event::poll(Duration::from_millis(10))?
-            .then(|| event::read())
+            .then(event::read)
             .and_then(|result| result.ok())
             .and_then(|event| match event {
                 Event::Key(key_event) => Some(key_event.code),
@@ -63,11 +70,30 @@ fn run_game(player_name: String) -> std::io::Result<()> {
             _ => None,
         });
 
-        game.update(new_direction)?;
-        game.render()?;
+        if let Some(direction) = new_direction {
+            snake.direction = direction;
+        }
 
-        if game.is_game_over() {
-            break;
+        if snake.head.is_on(&food.position) {
+            snake.grow = true;
+            score += 1;
+            side_panel.update_score(score);
+            food = Food::new(game_frame.width, game_frame.height);
+        }
+
+        snake.move_direction();
+
+        game_frame.render(stdout)?;
+        food.render(stdout)?;
+        snake.render(stdout)?;
+        side_panel.render(stdout)?;
+
+        stdout.flush()?;
+
+        if snake.head.is_on_border(game_frame.width, game_frame.height)
+            || snake.head.self_collision(&snake.tail)
+        {
+            break 'game_loop;
         }
 
         // Calculate remaining time in frame and sleep

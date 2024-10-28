@@ -5,78 +5,35 @@ use crossterm::{
 use rand::Rng;
 use std::{
     collections::VecDeque,
-    io::{self, Write},
+    io::{self},
 };
 
 use crate::theme;
 
-#[derive(Debug)]
-pub struct Game {
-    stdout: io::Stdout,
-    width: u16,
-    height: u16,
-    snake: Snake,
-    food: Food,
-    side_panel: SidePanel,
-    score: u32,
+pub struct GameFrame {
+    pub width: u16,
+    pub height: u16,
 }
 
-impl Game {
-    pub fn new(width: u16, panel_width: u16, height: u16, player_name: String) -> Self {
-        Self {
-            stdout: io::stdout(),
-            width,
-            height,
-            snake: Snake::new(width / 2, height / 2),
-            food: Food::new(width, height),
-            side_panel: SidePanel::new(width, height, panel_width, player_name),
-            score: 0,
-        }
+impl GameFrame {
+    pub fn new(width: u16, height: u16) -> Self {
+        Self { width, height }
     }
 
-    pub fn render(&mut self) -> io::Result<()> {
+    pub fn render(&self, stdout: &mut io::Stdout) -> io::Result<()> {
         for y in 0..self.height {
             for x in 0..self.width {
-                queue!(self.stdout, cursor::MoveTo(x, y))?;
+                queue!(stdout, cursor::MoveTo(x, y))?;
                 if Position::new(x, y).is_on_border(self.width, self.height) {
-                    queue!(
-                        self.stdout,
-                        style::PrintStyledContent("█".with(theme::SURFACE))
-                    )?;
+                    queue!(stdout, style::PrintStyledContent("█".with(theme::SURFACE)))?;
                     continue;
                 }
                 queue!(
-                    self.stdout,
+                    stdout,
                     style::PrintStyledContent("█".with(theme::BACKGROUND))
                 )?;
             }
         }
-
-        self.food.render(&mut self.stdout)?;
-        self.snake.render(&mut self.stdout)?;
-        self.side_panel.render(&mut self.stdout)?;
-
-        self.stdout.flush()
-    }
-
-    pub fn is_game_over(&self) -> bool {
-        self.snake.head.is_on_border(self.width, self.height)
-            || self.snake.head.self_collision(&self.snake.tail)
-    }
-
-    pub fn update(&mut self, new_direction: Option<Direction>) -> io::Result<()> {
-        if let Some(direction) = new_direction {
-            self.snake.direction = direction;
-        }
-
-        if self.snake.head.is_on(&self.food.position) {
-            self.snake.grow = true;
-            self.score += 1;
-            self.side_panel.update_score(self.score);
-            self.food = Food::new(self.width, self.height);
-        }
-
-        self.snake.move_direction();
         Ok(())
     }
 }
@@ -90,39 +47,39 @@ pub enum Direction {
 }
 
 #[derive(Debug, Clone)]
-struct Position {
-    x: u16,
-    y: u16,
+pub struct Position {
+    pub x: u16,
+    pub y: u16,
 }
 
 impl Position {
-    fn new(x: u16, y: u16) -> Self {
+    pub fn new(x: u16, y: u16) -> Self {
         Self { x, y }
     }
 
-    fn is_on_border(&self, width: u16, height: u16) -> bool {
+    pub fn is_on_border(&self, width: u16, height: u16) -> bool {
         self.x == 0 || self.y == height - 1 || self.x == width - 1 || self.y == 0
     }
 
-    fn is_on(&self, other: &Position) -> bool {
+    pub fn is_on(&self, other: &Position) -> bool {
         self.x == other.x && self.y == other.y
     }
 
-    fn self_collision(&self, tail: &VecDeque<Position>) -> bool {
+    pub fn self_collision(&self, tail: &VecDeque<Position>) -> bool {
         tail.iter().any(|pos| pos.x == self.x && pos.y == self.y)
     }
 }
 
 #[derive(Debug)]
-struct Snake {
-    head: Position,
-    tail: VecDeque<Position>,
-    direction: Direction,
-    grow: bool,
+pub struct Snake {
+    pub head: Position,
+    pub tail: VecDeque<Position>,
+    pub direction: Direction,
+    pub grow: bool,
 }
 
 impl Snake {
-    fn new(initial_x: u16, initial_y: u16) -> Self {
+    pub fn new(initial_x: u16, initial_y: u16) -> Self {
         Self {
             head: Position {
                 x: initial_x,
@@ -134,7 +91,7 @@ impl Snake {
         }
     }
 
-    fn render(&self, stdout: &mut io::Stdout) -> io::Result<()> {
+    pub fn render(&self, stdout: &mut io::Stdout) -> io::Result<()> {
         for pos in &self.tail {
             queue!(
                 stdout,
@@ -152,7 +109,7 @@ impl Snake {
         Ok(())
     }
 
-    fn move_direction(&mut self) {
+    pub fn move_direction(&mut self) {
         let old_head = self.head.clone();
 
         match self.direction {
@@ -173,12 +130,12 @@ impl Snake {
 }
 
 #[derive(Debug)]
-struct Food {
-    position: Position,
+pub struct Food {
+    pub position: Position,
 }
 
 impl Food {
-    fn new(max_width: u16, max_height: u16) -> Self {
+    pub fn new(max_width: u16, max_height: u16) -> Self {
         let mut rng = rand::thread_rng();
         let position = Position::new(
             rng.gen_range(1..max_width - 1),
@@ -187,7 +144,7 @@ impl Food {
         Self { position }
     }
 
-    fn render(&self, stdout: &mut io::Stdout) -> io::Result<()> {
+    pub fn render(&self, stdout: &mut io::Stdout) -> io::Result<()> {
         queue!(
             stdout,
             cursor::MoveTo(self.position.x, self.position.y),
@@ -198,14 +155,14 @@ impl Food {
 }
 
 #[derive(Debug)]
-struct InfoRow {
-    title: String,
-    data: String,
-    y_position: u16,
+pub struct InfoRow {
+    pub title: String,
+    pub data: String,
+    pub y_position: u16,
 }
 
 impl InfoRow {
-    fn new(title: &str, data: &str, row_index: u16) -> Self {
+    pub fn new(title: &str, data: &str, row_index: u16) -> Self {
         Self {
             title: title.to_string(),
             data: data.to_string(),
@@ -213,7 +170,7 @@ impl InfoRow {
         }
     }
 
-    fn render(&self, stdout: &mut io::Stdout, x_offset: u16) -> io::Result<()> {
+    pub fn render(&self, stdout: &mut io::Stdout, x_offset: u16) -> io::Result<()> {
         queue!(
             stdout,
             cursor::MoveTo(x_offset + 2, self.y_position),
@@ -229,17 +186,17 @@ impl InfoRow {
 }
 
 #[derive(Debug)]
-struct SidePanel {
-    x: u16,
-    width: u16,
-    height: u16,
-    player_row: InfoRow,
-    score_row: InfoRow,
-    max_score_row: InfoRow,
+pub struct SidePanel {
+    pub x: u16,
+    pub width: u16,
+    pub height: u16,
+    pub player_row: InfoRow,
+    pub score_row: InfoRow,
+    pub max_score_row: InfoRow,
 }
 
 impl SidePanel {
-    fn new(game_width_offset: u16, height: u16, panel_width: u16, player_name: String) -> Self {
+    pub fn new(game_width_offset: u16, height: u16, panel_width: u16, player_name: String) -> Self {
         Self {
             x: game_width_offset + 2,
             width: panel_width,
@@ -250,7 +207,7 @@ impl SidePanel {
         }
     }
 
-    fn render(&self, stdout: &mut io::Stdout) -> io::Result<()> {
+    pub fn render(&self, stdout: &mut io::Stdout) -> io::Result<()> {
         self.render_borders_and_corners(stdout)?;
 
         self.player_row.render(stdout, self.x)?;
@@ -259,11 +216,11 @@ impl SidePanel {
         Ok(())
     }
 
-    fn update_score(&mut self, score: u32) {
+    pub fn update_score(&mut self, score: u32) {
         self.score_row.data = score.to_string();
     }
 
-    fn render_borders_and_corners(&self, stdout: &mut io::Stdout) -> io::Result<()> {
+    pub fn render_borders_and_corners(&self, stdout: &mut io::Stdout) -> io::Result<()> {
         // Draw vertical borders
         for y in 0..self.height {
             queue!(
