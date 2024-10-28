@@ -158,27 +158,29 @@ impl Food {
 pub struct InfoRow {
     pub title: String,
     pub data: String,
+    pub x_offset: u16,
     pub y_position: u16,
 }
 
 impl InfoRow {
-    pub fn new(title: &str, data: &str, row_index: u16) -> Self {
+    pub fn new(title: &str, data: &str, x_offset: u16, row_index: u16) -> Self {
         Self {
             title: title.to_string(),
             data: data.to_string(),
+            x_offset,
             y_position: row_index * 3, // Each row takes 2 lines + 1 space
         }
     }
 
-    pub fn queue(&self, stdout: &mut io::Stdout, x_offset: u16) -> io::Result<()> {
+    pub fn queue(&self, stdout: &mut io::Stdout) -> io::Result<()> {
         queue!(
             stdout,
-            cursor::MoveTo(x_offset + 2, self.y_position),
+            cursor::MoveTo(self.x_offset + 2, self.y_position),
             style::PrintStyledContent(self.title.as_str().white())
         )?;
         queue!(
             stdout,
-            cursor::MoveTo(x_offset + 2, self.y_position + 1),
+            cursor::MoveTo(self.x_offset + 2, self.y_position + 1),
             style::PrintStyledContent(self.data.as_str().white())
         )?;
         Ok(())
@@ -197,21 +199,22 @@ pub struct SidePanel {
 
 impl SidePanel {
     pub fn new(game_width_offset: u16, height: u16, panel_width: u16, player_name: String) -> Self {
+        let x = game_width_offset + 2;
         Self {
-            x: game_width_offset + 2,
+            x,
             width: panel_width,
             height,
-            player_row: InfoRow::new("PLAYER", &player_name, 0),
-            score_row: InfoRow::new("SCORE", "0", 1),
-            max_score_row: InfoRow::new("MAX SCORE", "25", 2), // TODO
+            player_row: InfoRow::new("PLAYER", &player_name, x, 0),
+            score_row: InfoRow::new("SCORE", "0", x, 1),
+            max_score_row: InfoRow::new("MAX SCORE", "25", x, 2), // TODO
         }
     }
 
     pub fn queue(&self, stdout: &mut io::Stdout) -> io::Result<()> {
         self.queue_borders_and_corners(stdout)?;
-        self.player_row.queue(stdout, self.x)?;
-        self.score_row.queue(stdout, self.x)?;
-        self.max_score_row.queue(stdout, self.x)?;
+        self.player_row.queue(stdout)?;
+        self.score_row.queue(stdout)?;
+        self.max_score_row.queue(stdout)?;
         Ok(())
     }
 
