@@ -45,7 +45,7 @@ fn run_game(stdout: &mut std::io::Stdout, player_name: String) -> std::io::Resul
     let mut side_panel = SidePanel::new(GAME_WIDTH, HEIGHT, PANEL_WIDTH, player_name);
     let mut score = 0;
 
-    game_frame.render(stdout)?;
+    game_frame.queue(stdout)?;
 
     'game_loop: loop {
         let frame_start = Instant::now();
@@ -83,10 +83,10 @@ fn run_game(stdout: &mut std::io::Stdout, player_name: String) -> std::io::Resul
 
         snake.move_direction();
 
-        game_frame.render(stdout)?;
-        food.render(stdout)?;
-        snake.render(stdout)?;
-        side_panel.render(stdout)?;
+        game_frame.queue(stdout)?;
+        food.queue(stdout)?;
+        snake.queue(stdout)?;
+        side_panel.queue(stdout)?;
 
         stdout.flush()?;
 

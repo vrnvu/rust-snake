@@ -9,35 +9,34 @@ use crossterm::{
 use std::io::Write;
 
 pub struct InputInfoRow {
+    pub x: u16,
+    pub y: u16,
     pub label: String,
     pub value: String,
     pub cursor_position: usize,
 }
 
-pub struct Button {
-    pub label: String,
-    pub selected: bool,
-}
-
 impl InputInfoRow {
-    pub fn new(label: &str) -> Self {
+    pub fn new(x: u16, y: u16, label: &str) -> Self {
         Self {
+            x,
+            y,
             label: label.to_string(),
             value: String::new(),
             cursor_position: 0,
         }
     }
 
-    pub fn render(&self, x: u16, y: u16, stdout: &mut std::io::Stdout) -> std::io::Result<()> {
+    pub fn queue(&self, stdout: &mut std::io::Stdout) -> std::io::Result<()> {
         queue!(
             stdout,
-            cursor::MoveTo(x, y),
+            cursor::MoveTo(self.x, self.y),
             terminal::Clear(terminal::ClearType::CurrentLine), // Clear the line first
             Print(format!("{}: ", self.label)),
             Print(&self.value),
             cursor::MoveTo(
-                x + self.label.len() as u16 + 2 + self.cursor_position as u16,
-                y,
+                self.x + self.label.len() as u16 + 2 + self.cursor_position as u16,
+                self.y,
             ),
             Print("▎")
         )?;
@@ -69,35 +68,44 @@ impl InputInfoRow {
     }
 }
 
+pub struct Button {
+    pub x: u16,
+    pub y: u16,
+    pub label: String,
+    pub selected: bool,
+}
+
 impl Button {
-    pub fn new(label: &str, selected: bool) -> Self {
+    pub fn new(x: u16, y: u16, label: &str, selected: bool) -> Self {
         Self {
+            x,
+            y,
             label: label.to_string(),
             selected,
         }
     }
 
-    pub fn render(&self, x: u16, y: u16, stdout: &mut std::io::Stdout) -> std::io::Result<()> {
+    pub fn queue(&self, stdout: &mut std::io::Stdout) -> std::io::Result<()> {
         let border = "─".repeat(self.label.len() + 2);
 
         if self.selected {
             queue!(
                 stdout,
-                cursor::MoveTo(x - 2, y),
+                cursor::MoveTo(self.x - 2, self.y),
                 Print(format!("> ┌{}┐", border)),
-                cursor::MoveTo(x - 2, y + 1),
+                cursor::MoveTo(self.x - 2, self.y + 1),
                 Print(format!("  │ {} │", self.label)),
-                cursor::MoveTo(x - 2, y + 2),
+                cursor::MoveTo(self.x - 2, self.y + 2),
                 Print(format!("  └{}┘ <", border))
             )?;
         } else {
             queue!(
                 stdout,
-                cursor::MoveTo(x - 2, y),
+                cursor::MoveTo(self.x - 2, self.y),
                 Print(format!("  ┌{}┐", border)), // Added 2 spaces to align with selected state
-                cursor::MoveTo(x - 2, y + 1),
+                cursor::MoveTo(self.x - 2, self.y + 1),
                 Print(format!("  │ {} │", self.label)),
-                cursor::MoveTo(x - 2, y + 2),
+                cursor::MoveTo(self.x - 2, self.y + 2),
                 Print(format!("  └{}┘  ", border)) // Added 2 spaces to clear the '<'
             )?;
         }
@@ -132,19 +140,16 @@ pub fn show(
         }
     }
 
-    let mut name_input = InputInfoRow::new("Your name");
-    let mut play_button = Button::new("PLAY", true);
-    let mut exit_button = Button::new("EXIT", false);
+    let mut name_input = InputInfoRow::new(4, 2, "Your name");
+    let center_x = total_width / 2;
+    let mut play_button = Button::new(center_x - 10, height / 2, "PLAY", true);
+    let mut exit_button = Button::new(center_x + 5, height / 2, "EXIT", false);
     let mut selected_button = 0;
 
     loop {
-        // Name input at top-left
-        name_input.render(4, 2, stdout)?;
-
-        // Center buttons horizontally
-        let center_x = total_width / 2;
-        play_button.render(center_x - 10, height / 2, stdout)?;
-        exit_button.render(center_x + 5, height / 2, stdout)?;
+        name_input.queue(stdout)?;
+        play_button.queue(stdout)?;
+        exit_button.queue(stdout)?;
 
         // Help text aligned left
         queue!(
