@@ -4,8 +4,9 @@ use crossterm::{
     execute, terminal,
 };
 use rust_snake::{
-    game::{Direction, GameFrame, GameState, SidePanel},
+    game::{Direction, GameFrame, GameState},
     menu,
+    menu::SidePanel,
 };
 use std::{
     io::Write,
