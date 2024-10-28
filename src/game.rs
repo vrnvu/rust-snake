@@ -10,6 +10,57 @@ use std::{
 
 use crate::theme;
 
+pub struct GameState {
+    pub snake: Snake,
+    pub food: Food,
+    pub score: u32,
+    pub game_width: u16,
+    pub game_height: u16,
+}
+
+impl GameState {
+    pub fn new(game_width: u16, game_height: u16) -> Self {
+        let snake = Snake::new(game_width / 2, game_height / 2);
+        let food = Food::new(game_width, game_height);
+        let score = 0;
+
+        Self {
+            snake,
+            food,
+            score,
+            game_width,
+            game_height,
+        }
+    }
+
+    pub fn queue(&self, stdout: &mut io::Stdout) -> io::Result<()> {
+        self.snake.queue(stdout)?;
+        self.food.queue(stdout)?;
+        Ok(())
+    }
+
+    pub fn next(&mut self, action: Option<Direction>) {
+        if let Some(direction) = action {
+            self.snake.direction = direction;
+        }
+
+        self.snake.move_direction();
+
+        if self.snake.head == self.food.position {
+            self.snake.grow = true;
+            self.food = Food::new(self.game_width, self.game_height);
+            self.score += 1;
+        }
+    }
+
+    pub fn is_game_over(&self) -> bool {
+        self.snake
+            .head
+            .is_on_border(self.game_width, self.game_height)
+            || self.snake.self_collision()
+    }
+}
+
 pub struct GameFrame {
     pub width: u16,
     pub height: u16,
@@ -159,18 +210,18 @@ impl Food {
 }
 
 #[derive(Debug)]
-pub struct InfoRow {
+pub struct InfoRow<T: std::fmt::Display> {
     pub title: String,
-    pub data: String,
+    pub data: T,
     pub x_offset: u16,
     pub y_position: u16,
 }
 
-impl InfoRow {
-    pub fn new(title: &str, data: &str, x_offset: u16, row_index: u16) -> Self {
+impl<T: std::fmt::Display> InfoRow<T> {
+    pub fn new(title: &str, data: T, x_offset: u16, row_index: u16) -> Self {
         Self {
             title: title.to_string(),
-            data: data.to_string(),
+            data,
             x_offset,
             y_position: row_index * 3, // Each row takes 2 lines + 1 space
         }
@@ -185,7 +236,7 @@ impl InfoRow {
         queue!(
             stdout,
             cursor::MoveTo(self.x_offset + 2, self.y_position + 1),
-            style::PrintStyledContent(self.data.as_str().white())
+            style::PrintStyledContent(self.data.to_string().white())
         )?;
         Ok(())
     }
@@ -196,9 +247,9 @@ pub struct SidePanel {
     pub x: u16,
     pub width: u16,
     pub height: u16,
-    pub player_row: InfoRow,
-    pub score_row: InfoRow,
-    pub max_score_row: InfoRow,
+    pub player_row: InfoRow<String>,
+    pub score_row: InfoRow<u32>,
+    pub max_score_row: InfoRow<u32>,
 }
 
 impl SidePanel {
@@ -208,9 +259,9 @@ impl SidePanel {
             x,
             width: panel_width,
             height,
-            player_row: InfoRow::new("PLAYER", &player_name, x, 0),
-            score_row: InfoRow::new("SCORE", "0", x, 1),
-            max_score_row: InfoRow::new("MAX SCORE", "25", x, 2), // TODO
+            player_row: InfoRow::new("PLAYER", player_name, x, 0),
+            score_row: InfoRow::new("SCORE", 0, x, 1),
+            max_score_row: InfoRow::new("MAX SCORE", 25, x, 2), // TODO
         }
     }
 
@@ -237,7 +288,7 @@ impl SidePanel {
     }
 
     pub fn update_score(&mut self, score: u32) {
-        self.score_row.data = score.to_string();
+        self.score_row.data = score;
     }
 
     pub fn queue_borders_and_corners(&self, stdout: &mut io::Stdout) -> io::Result<()> {

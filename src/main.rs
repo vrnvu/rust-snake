@@ -4,7 +4,7 @@ use crossterm::{
     execute, terminal,
 };
 use rust_snake::{
-    game::{Direction, Food, GameFrame, SidePanel, Snake},
+    game::{Direction, GameFrame, GameState, SidePanel},
     menu,
 };
 use std::{
@@ -40,10 +40,8 @@ fn run_game(stdout: &mut std::io::Stdout, player_name: String) -> std::io::Resul
     execute!(stdout, cursor::Hide)?;
 
     let game_frame = GameFrame::new(GAME_WIDTH, HEIGHT);
-    let mut snake = Snake::new(GAME_WIDTH / 2, HEIGHT / 2);
-    let mut food = Food::new(GAME_WIDTH, HEIGHT);
+    let mut state = GameState::new(GAME_WIDTH, HEIGHT);
     let mut side_panel = SidePanel::new(GAME_WIDTH, HEIGHT, PANEL_WIDTH, player_name);
-    let mut score = 0;
 
     'game_loop: loop {
         let frame_start = Instant::now();
@@ -85,7 +83,7 @@ fn run_game(stdout: &mut std::io::Stdout, player_name: String) -> std::io::Resul
             }
         }
 
-        let new_direction = user_input.and_then(|code| match code {
+        let game_action = user_input.and_then(|code| match code {
             KeyCode::Up => Some(Direction::Up),
             KeyCode::Down => Some(Direction::Down),
             KeyCode::Left => Some(Direction::Left),
@@ -93,27 +91,15 @@ fn run_game(stdout: &mut std::io::Stdout, player_name: String) -> std::io::Resul
             _ => None,
         });
 
-        if let Some(direction) = new_direction {
-            snake.direction = direction;
-        }
-
-        if snake.head == food.position {
-            snake.grow = true;
-            score += 1;
-            side_panel.update_score(score);
-            food = Food::new(game_frame.width, game_frame.height);
-        }
-
-        snake.move_direction();
+        state.next(game_action);
+        side_panel.update_score(state.score);
 
         game_frame.queue(stdout)?;
-        food.queue(stdout)?;
-        snake.queue(stdout)?;
         side_panel.queue(stdout)?;
-
+        state.queue(stdout)?;
         stdout.flush()?;
 
-        if snake.head.is_on_border(game_frame.width, game_frame.height) || snake.self_collision() {
+        if state.is_game_over() {
             break 'game_loop;
         }
 
