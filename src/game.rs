@@ -20,7 +20,7 @@ impl GameFrame {
         Self { width, height }
     }
 
-    pub fn render(&self, stdout: &mut io::Stdout) -> io::Result<()> {
+    pub fn queue(&self, stdout: &mut io::Stdout) -> io::Result<()> {
         for y in 0..self.height {
             for x in 0..self.width {
                 queue!(stdout, cursor::MoveTo(x, y))?;
@@ -91,7 +91,7 @@ impl Snake {
         }
     }
 
-    pub fn render(&self, stdout: &mut io::Stdout) -> io::Result<()> {
+    pub fn queue(&self, stdout: &mut io::Stdout) -> io::Result<()> {
         for pos in &self.tail {
             queue!(
                 stdout,
@@ -144,7 +144,7 @@ impl Food {
         Self { position }
     }
 
-    pub fn render(&self, stdout: &mut io::Stdout) -> io::Result<()> {
+    pub fn queue(&self, stdout: &mut io::Stdout) -> io::Result<()> {
         queue!(
             stdout,
             cursor::MoveTo(self.position.x, self.position.y),
@@ -170,7 +170,7 @@ impl InfoRow {
         }
     }
 
-    pub fn render(&self, stdout: &mut io::Stdout, x_offset: u16) -> io::Result<()> {
+    pub fn queue(&self, stdout: &mut io::Stdout, x_offset: u16) -> io::Result<()> {
         queue!(
             stdout,
             cursor::MoveTo(x_offset + 2, self.y_position),
@@ -207,12 +207,11 @@ impl SidePanel {
         }
     }
 
-    pub fn render(&self, stdout: &mut io::Stdout) -> io::Result<()> {
-        self.render_borders_and_corners(stdout)?;
-
-        self.player_row.render(stdout, self.x)?;
-        self.score_row.render(stdout, self.x)?;
-        self.max_score_row.render(stdout, self.x)?;
+    pub fn queue(&self, stdout: &mut io::Stdout) -> io::Result<()> {
+        self.queue_borders_and_corners(stdout)?;
+        self.player_row.queue(stdout, self.x)?;
+        self.score_row.queue(stdout, self.x)?;
+        self.max_score_row.queue(stdout, self.x)?;
         Ok(())
     }
 
@@ -220,7 +219,7 @@ impl SidePanel {
         self.score_row.data = score.to_string();
     }
 
-    pub fn render_borders_and_corners(&self, stdout: &mut io::Stdout) -> io::Result<()> {
+    pub fn queue_borders_and_corners(&self, stdout: &mut io::Stdout) -> io::Result<()> {
         // Draw vertical borders
         for y in 0..self.height {
             queue!(
