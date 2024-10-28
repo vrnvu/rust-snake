@@ -8,6 +8,8 @@ use std::{
     io::{self, Write},
 };
 
+use crate::theme;
+
 #[derive(Debug)]
 pub struct Game {
     stdout: io::Stdout,
@@ -37,10 +39,16 @@ impl Game {
             for x in 0..self.width {
                 queue!(self.stdout, cursor::MoveTo(x, y))?;
                 if Position::new(x, y).is_on_border(self.width, self.height) {
-                    queue!(self.stdout, style::PrintStyledContent("█".white()))?;
+                    queue!(
+                        self.stdout,
+                        style::PrintStyledContent("█".with(theme::SURFACE))
+                    )?;
                     continue;
                 }
-                queue!(self.stdout, style::PrintStyledContent("█".dark_blue()))?;
+                queue!(
+                    self.stdout,
+                    style::PrintStyledContent("█".with(theme::BACKGROUND))
+                )?;
             }
         }
 
@@ -131,14 +139,14 @@ impl Snake {
             queue!(
                 stdout,
                 cursor::MoveTo(pos.x, pos.y),
-                style::PrintStyledContent("█".green())
+                style::PrintStyledContent("█".with(theme::SECONDARY))
             )?;
         }
 
         queue!(
             stdout,
             cursor::MoveTo(self.head.x, self.head.y),
-            style::PrintStyledContent("█".yellow())
+            style::PrintStyledContent("█".with(theme::PRIMARY))
         )?;
 
         Ok(())
@@ -183,7 +191,7 @@ impl Food {
         queue!(
             stdout,
             cursor::MoveTo(self.position.x, self.position.y),
-            style::PrintStyledContent("●".with(style::Color::Red).on(style::Color::DarkBlue))
+            style::PrintStyledContent("●".with(theme::ACCENT).on(theme::BACKGROUND))
         )?;
         Ok(())
     }
@@ -261,12 +269,12 @@ impl SidePanel {
             queue!(
                 stdout,
                 cursor::MoveTo(self.x, y),
-                style::PrintStyledContent("│".white())
+                style::PrintStyledContent("│".with(theme::SURFACE))
             )?;
             queue!(
                 stdout,
                 cursor::MoveTo(self.x + self.width, y),
-                style::PrintStyledContent("│".white())
+                style::PrintStyledContent("│".with(theme::SURFACE))
             )?;
         }
 
@@ -275,12 +283,12 @@ impl SidePanel {
             queue!(
                 stdout,
                 cursor::MoveTo(x, 0),
-                style::PrintStyledContent("─".white())
+                style::PrintStyledContent("─".with(theme::SURFACE))
             )?;
             queue!(
                 stdout,
                 cursor::MoveTo(x, self.height - 1),
-                style::PrintStyledContent("─".white())
+                style::PrintStyledContent("─".with(theme::SURFACE))
             )?;
         }
 
@@ -288,22 +296,22 @@ impl SidePanel {
         queue!(
             stdout,
             cursor::MoveTo(self.x, 0),
-            style::PrintStyledContent("┌".white())
+            style::PrintStyledContent("┌".with(theme::SURFACE))
         )?;
         queue!(
             stdout,
             cursor::MoveTo(self.x + self.width, 0),
-            style::PrintStyledContent("┐".white())
+            style::PrintStyledContent("┐".with(theme::SURFACE))
         )?;
         queue!(
             stdout,
             cursor::MoveTo(self.x, self.height - 1),
-            style::PrintStyledContent("└".white())
+            style::PrintStyledContent("└".with(theme::SURFACE))
         )?;
         queue!(
             stdout,
             cursor::MoveTo(self.x + self.width, self.height - 1),
-            style::PrintStyledContent("┘".white())
+            style::PrintStyledContent("┘".with(theme::SURFACE))
         )?;
 
         Ok(())

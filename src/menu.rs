@@ -1,8 +1,9 @@
+use crate::theme;
 use crossterm::{
     cursor,
     event::{self, Event, KeyCode},
     execute, queue,
-    style::Print,
+    style::{self, Print, PrintStyledContent, Stylize},
     terminal,
 };
 use std::io::{stdout, Write};
@@ -35,7 +36,6 @@ impl InputInfoRow {
         queue!(
             stdout,
             cursor::MoveTo(x, y),
-            terminal::Clear(terminal::ClearType::CurrentLine),
             Print(format!("{}: {}", self.label, display))
         )?;
         Ok(())
@@ -113,10 +113,8 @@ pub fn show(game_width: u16, panel_width: u16, height: u16) -> std::io::Result<O
     for y in 0..height {
         for x in 0..total_width {
             queue!(stdout, cursor::MoveTo(x, y))?;
-            if y == 0 || y == height - 1 {
-                queue!(stdout, Print("█"))?;
-            } else if x == 0 || x == total_width - 1 {
-                queue!(stdout, Print("█"))?;
+            if y == 0 || y == height - 1 || x == 0 || x == total_width - 1 {
+                queue!(stdout, PrintStyledContent("█".with(theme::SURFACE)))?;
             } else {
                 queue!(stdout, Print(" "))?;
             }
