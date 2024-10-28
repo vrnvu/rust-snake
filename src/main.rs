@@ -18,10 +18,18 @@ const HEIGHT: u16 = 15;
 const FRAME_DURATION: Duration = Duration::from_millis(125); // 8 FPS
 
 fn main() -> std::io::Result<()> {
-    match menu::show(GAME_WIDTH, PANEL_WIDTH, HEIGHT)? {
-        Some(player_name) => run_game(player_name),
-        None => Ok(()),
+    if let Some(player_name) = menu::show(GAME_WIDTH, PANEL_WIDTH, HEIGHT)? {
+        run_game(player_name)?;
     }
+
+    execute!(
+        std::io::stdout(),
+        terminal::Clear(terminal::ClearType::All),
+        cursor::MoveTo(0, 0),
+        cursor::Show
+    )?;
+    terminal::disable_raw_mode()?;
+    Ok(())
 }
 
 fn run_game(player_name: String) -> std::io::Result<()> {
@@ -69,8 +77,5 @@ fn run_game(player_name: String) -> std::io::Result<()> {
         }
     }
 
-    // Cleanup
-    terminal::disable_raw_mode()?;
-    execute!(std::io::stdout(), cursor::Show)?;
     Ok(())
 }
