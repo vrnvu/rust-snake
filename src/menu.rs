@@ -3,7 +3,7 @@ use crossterm::{
     cursor,
     event::{self, Event, KeyCode},
     execute, queue,
-    style::{self, Print, PrintStyledContent, Stylize},
+    style::{Print, PrintStyledContent, Stylize},
     terminal,
 };
 use std::io::{stdout, Write};
@@ -28,15 +28,18 @@ impl InputInfoRow {
         }
     }
 
-    pub fn render(&self, x: u16, y: u16) -> std::io::Result<()> {
-        let mut stdout = stdout();
-        let mut display = self.value.clone();
-        display.insert(self.cursor_position, '▎');
-
+    pub fn render(&self, x: u16, y: u16, stdout: &mut std::io::Stdout) -> std::io::Result<()> {
         queue!(
             stdout,
             cursor::MoveTo(x, y),
-            Print(format!("{}: {}", self.label, display))
+            terminal::Clear(terminal::ClearType::CurrentLine), // Clear the line first
+            Print(format!("{}: ", self.label)),
+            Print(&self.value),
+            cursor::MoveTo(
+                x + self.label.len() as u16 + 2 + self.cursor_position as u16,
+                y,
+            ),
+            Print("▎")
         )?;
         Ok(())
     }
@@ -48,8 +51,12 @@ impl InputInfoRow {
                 self.cursor_position += 1;
             }
             KeyCode::Backspace if self.cursor_position > 0 => {
-                self.cursor_position -= 1;
-                self.value.remove(self.cursor_position);
+                // Fix: First store the target position
+                let target_pos = self.cursor_position - 1;
+                // Then remove the character at that position
+                self.value.remove(target_pos);
+                // Finally update cursor
+                self.cursor_position = target_pos;
             }
             KeyCode::Left if self.cursor_position > 0 => {
                 self.cursor_position -= 1;
@@ -70,8 +77,7 @@ impl Button {
         }
     }
 
-    pub fn render(&self, x: u16, y: u16) -> std::io::Result<()> {
-        let mut stdout = stdout();
+    pub fn render(&self, x: u16, y: u16, stdout: &mut std::io::Stdout) -> std::io::Result<()> {
         let border = "─".repeat(self.label.len() + 2);
 
         if self.selected {
@@ -99,10 +105,15 @@ impl Button {
     }
 }
 
-pub fn show(game_width: u16, panel_width: u16, height: u16) -> std::io::Result<Option<String>> {
+pub fn show(
+    stdout: &mut std::io::Stdout,
+    game_width: u16,
+    panel_width: u16,
+    height: u16,
+) -> std::io::Result<Option<String>> {
     let total_width = game_width + panel_width;
     terminal::enable_raw_mode()?;
-    let mut stdout = stdout();
+
     execute!(
         stdout,
         terminal::Clear(terminal::ClearType::All),
@@ -128,12 +139,12 @@ pub fn show(game_width: u16, panel_width: u16, height: u16) -> std::io::Result<O
 
     loop {
         // Name input at top-left
-        name_input.render(4, 2)?;
+        name_input.render(4, 2, stdout)?;
 
         // Center buttons horizontally
         let center_x = total_width / 2;
-        play_button.render(center_x - 10, height / 2)?;
-        exit_button.render(center_x + 5, height / 2)?;
+        play_button.render(center_x - 10, height / 2, stdout)?;
+        exit_button.render(center_x + 5, height / 2, stdout)?;
 
         // Help text aligned left
         queue!(
