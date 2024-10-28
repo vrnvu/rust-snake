@@ -20,6 +20,8 @@ struct Game {
     height: u16,
     snake: Snake,
     food: Food,
+    side_panel: SidePanel,
+    score: u32,
 }
 
 impl Game {
@@ -30,6 +32,8 @@ impl Game {
             height,
             snake: Snake::new(width / 2, height / 2),
             food: Food::new(width, height),
+            side_panel: SidePanel::new(width, height),
+            score: 0,
         }
     }
 
@@ -47,13 +51,14 @@ impl Game {
                     queue!(self.stdout, style::PrintStyledContent("█".white()))?;
                     continue;
                 }
-
                 queue!(self.stdout, style::PrintStyledContent("█".dark_blue()))?;
             }
         }
 
         self.food.render(&mut self.stdout)?;
         self.snake.render(&mut self.stdout)?;
+        self.side_panel.render(&mut self.stdout)?;
+
         self.stdout.flush()
     }
 
@@ -62,11 +67,11 @@ impl Game {
             || self.snake.head.self_collision(&self.snake.tail)
     }
 
-    // TODO: make this functional and reproducible
-    // Old State -> Action -> New State
     fn update(&mut self) -> io::Result<()> {
         if self.snake.head.is_on(&self.food.position) {
             self.snake.grow = true;
+            self.score += 1;
+            self.side_panel.update_score(self.score);
             self.food = Food::new(self.width, self.height);
         }
 
@@ -187,6 +192,127 @@ impl Food {
             cursor::MoveTo(self.position.x, self.position.y),
             style::PrintStyledContent("●".red())
         )?;
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+struct InfoRow {
+    title: String,
+    data: String,
+    y_position: u16,
+}
+
+impl InfoRow {
+    fn new(title: &str, data: &str, row_index: u16) -> Self {
+        Self {
+            title: title.to_string(),
+            data: data.to_string(),
+            y_position: row_index * 3, // Each row takes 2 lines + 1 space
+        }
+    }
+
+    fn render(&self, stdout: &mut io::Stdout, x_offset: u16) -> io::Result<()> {
+        queue!(
+            stdout,
+            cursor::MoveTo(x_offset + 2, self.y_position),
+            style::PrintStyledContent(self.title.as_str().white())
+        )?;
+        queue!(
+            stdout,
+            cursor::MoveTo(x_offset + 2, self.y_position + 1),
+            style::PrintStyledContent(self.data.as_str().white())
+        )?;
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+struct SidePanel {
+    x: u16,
+    width: u16,
+    height: u16,
+    player_row: InfoRow,
+    score_row: InfoRow,
+    max_score_row: InfoRow,
+}
+
+impl SidePanel {
+    fn new(game_width: u16, height: u16) -> Self {
+        Self {
+            x: game_width + 2,
+            width: 15,
+            height,
+            player_row: InfoRow::new("PLAYER", "antoñito", 0),
+            score_row: InfoRow::new("SCORE", "0", 1),
+            max_score_row: InfoRow::new("MAX SCORE", "25", 2), // TODO
+        }
+    }
+
+    fn render(&self, stdout: &mut io::Stdout) -> io::Result<()> {
+        self.render_borders_and_corners(stdout)?;
+
+        self.player_row.render(stdout, self.x)?;
+        self.score_row.render(stdout, self.x)?;
+        self.max_score_row.render(stdout, self.x)?;
+        Ok(())
+    }
+
+    fn update_score(&mut self, score: u32) {
+        self.score_row.data = score.to_string();
+    }
+
+    fn render_borders_and_corners(&self, stdout: &mut io::Stdout) -> io::Result<()> {
+        // Draw vertical borders
+        for y in 0..self.height {
+            queue!(
+                stdout,
+                cursor::MoveTo(self.x, y),
+                style::PrintStyledContent("│".white())
+            )?;
+            queue!(
+                stdout,
+                cursor::MoveTo(self.x + self.width, y),
+                style::PrintStyledContent("│".white())
+            )?;
+        }
+
+        // Draw horizontal borders
+        for x in self.x..=self.x + self.width {
+            queue!(
+                stdout,
+                cursor::MoveTo(x, 0),
+                style::PrintStyledContent("─".white())
+            )?;
+            queue!(
+                stdout,
+                cursor::MoveTo(x, self.height - 1),
+                style::PrintStyledContent("─".white())
+            )?;
+        }
+
+        // Draw corners
+        queue!(
+            stdout,
+            cursor::MoveTo(self.x, 0),
+            style::PrintStyledContent("┌".white())
+        )?;
+        queue!(
+            stdout,
+            cursor::MoveTo(self.x + self.width, 0),
+            style::PrintStyledContent("┐".white())
+        )?;
+        queue!(
+            stdout,
+            cursor::MoveTo(self.x, self.height - 1),
+            style::PrintStyledContent("└".white())
+        )?;
+        queue!(
+            stdout,
+            cursor::MoveTo(self.x + self.width, self.height - 1),
+            style::PrintStyledContent("┘".white())
+        )?;
+
         Ok(())
     }
 }
