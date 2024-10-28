@@ -60,13 +60,11 @@ impl Position {
     pub fn is_on_border(&self, width: u16, height: u16) -> bool {
         self.x == 0 || self.y == height - 1 || self.x == width - 1 || self.y == 0
     }
+}
 
-    pub fn is_on(&self, other: &Position) -> bool {
+impl PartialEq for Position {
+    fn eq(&self, other: &Self) -> bool {
         self.x == other.x && self.y == other.y
-    }
-
-    pub fn self_collision(&self, tail: &VecDeque<Position>) -> bool {
-        tail.iter().any(|pos| pos.x == self.x && pos.y == self.y)
     }
 }
 
@@ -126,6 +124,12 @@ impl Snake {
             self.tail.pop_back();
         }
         self.grow = false;
+    }
+
+    pub fn self_collision(&self) -> bool {
+        self.tail
+            .iter()
+            .any(|pos| pos.x == self.head.x && pos.y == self.head.y)
     }
 }
 
@@ -215,6 +219,20 @@ impl SidePanel {
         self.player_row.queue(stdout)?;
         self.score_row.queue(stdout)?;
         self.max_score_row.queue(stdout)?;
+
+        // Add help text with some spacing after the info rows
+        queue!(
+            stdout,
+            cursor::MoveTo(self.x + 2, self.max_score_row.y_position + 3),
+            style::PrintStyledContent("CONTROLS".white()),
+            cursor::MoveTo(self.x + 2, self.max_score_row.y_position + 4),
+            style::PrintStyledContent("'s' to stop".white()),
+            cursor::MoveTo(self.x + 2, self.max_score_row.y_position + 5),
+            style::PrintStyledContent("'b' to go back".white()),
+            cursor::MoveTo(self.x + 2, self.max_score_row.y_position + 6),
+            style::PrintStyledContent("'ESC' to exit".white())
+        )?;
+
         Ok(())
     }
 

@@ -16,7 +16,7 @@ use std::{
 const GAME_WIDTH: u16 = 30;
 const PANEL_WIDTH: u16 = 20;
 const HEIGHT: u16 = 15;
-const FRAME_DURATION: Duration = Duration::from_millis(125); // 8 FPS
+const FRAME_DURATION: Duration = Duration::from_millis(75); // ~13 FPS
 
 fn main() -> std::io::Result<()> {
     let mut stdout = std::io::stdout();
@@ -45,12 +45,10 @@ fn run_game(stdout: &mut std::io::Stdout, player_name: String) -> std::io::Resul
     let mut side_panel = SidePanel::new(GAME_WIDTH, HEIGHT, PANEL_WIDTH, player_name);
     let mut score = 0;
 
-    game_frame.queue(stdout)?;
-
     'game_loop: loop {
         let frame_start = Instant::now();
 
-        let new_direction = event::poll(Duration::from_millis(10))?
+        let user_input = event::poll(Duration::from_millis(5))?
             .then(event::read)
             .and_then(|result| result.ok())
             .and_then(|event| match event {
@@ -58,11 +56,31 @@ fn run_game(stdout: &mut std::io::Stdout, player_name: String) -> std::io::Resul
                 _ => None,
             });
 
-        if let Some(KeyCode::Esc) = new_direction {
+        if let Some(KeyCode::Esc) = user_input {
             break 'game_loop;
         }
 
-        let new_direction = new_direction.and_then(|code| match code {
+        if let Some(KeyCode::Char('s')) = user_input {
+            loop {
+                let user_input = event::poll(Duration::from_millis(5))?
+                    .then(event::read)
+                    .and_then(|result| result.ok())
+                    .and_then(|event| match event {
+                        Event::Key(key_event) => Some(key_event.code),
+                        _ => None,
+                    });
+
+                if let Some(KeyCode::Esc) = user_input {
+                    break 'game_loop;
+                }
+
+                if let Some(KeyCode::Char('s')) = user_input {
+                    break;
+                }
+            }
+        }
+
+        let new_direction = user_input.and_then(|code| match code {
             KeyCode::Up => Some(Direction::Up),
             KeyCode::Down => Some(Direction::Down),
             KeyCode::Left => Some(Direction::Left),
@@ -74,7 +92,7 @@ fn run_game(stdout: &mut std::io::Stdout, player_name: String) -> std::io::Resul
             snake.direction = direction;
         }
 
-        if snake.head.is_on(&food.position) {
+        if snake.head == food.position {
             snake.grow = true;
             score += 1;
             side_panel.update_score(score);
@@ -90,9 +108,7 @@ fn run_game(stdout: &mut std::io::Stdout, player_name: String) -> std::io::Resul
 
         stdout.flush()?;
 
-        if snake.head.is_on_border(game_frame.width, game_frame.height)
-            || snake.head.self_collision(&snake.tail)
-        {
+        if snake.head.is_on_border(game_frame.width, game_frame.height) || snake.self_collision() {
             break 'game_loop;
         }
 
