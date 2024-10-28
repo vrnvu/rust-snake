@@ -190,7 +190,7 @@ impl Food {
         queue!(
             stdout,
             cursor::MoveTo(self.position.x, self.position.y),
-            style::PrintStyledContent("●".red())
+            style::PrintStyledContent("●".with(style::Color::Red).on(style::Color::DarkBlue))
         )?;
         Ok(())
     }
