@@ -13,9 +13,9 @@ pub struct SidePanel {
     pub x: u16,
     pub width: u16,
     pub height: u16,
-    pub player_row: InfoRow<String>,
-    pub score_row: InfoRow<u32>,
-    pub max_score_row: InfoRow<u32>,
+    pub score_row: DynamicInfoRow<u32>,
+    pub player_row: StaticInfoRow<String>,
+    pub max_score_row: StaticInfoRow<u32>,
 }
 
 impl SidePanel {
@@ -25,9 +25,9 @@ impl SidePanel {
             x,
             width: panel_width,
             height,
-            player_row: InfoRow::new("PLAYER", player_name, x, 0),
-            score_row: InfoRow::new("SCORE", 0, x, 1),
-            max_score_row: InfoRow::new("MAX SCORE", 25, x, 2), // TODO
+            score_row: DynamicInfoRow::new("SCORE", 0, x, 1),
+            player_row: StaticInfoRow::new("PLAYER", player_name, x, 0),
+            max_score_row: StaticInfoRow::new("MAX SCORE", 25, x, 2), // TODO
         }
     }
 
@@ -54,7 +54,7 @@ impl SidePanel {
     }
 
     pub fn update_score(&mut self, score: u32) {
-        self.score_row.data = score;
+        self.score_row.update(score);
     }
 
     pub fn queue_borders_and_corners(&self, stdout: &mut std::io::Stdout) -> std::io::Result<()> {
@@ -113,14 +113,51 @@ impl SidePanel {
 }
 
 #[derive(Debug)]
-pub struct InfoRow<T: std::fmt::Display> {
+pub struct DynamicInfoRow<T: std::fmt::Display> {
     pub title: String,
     pub data: T,
     pub x_offset: u16,
     pub y_position: u16,
 }
 
-impl<T: std::fmt::Display> InfoRow<T> {
+impl<T: std::fmt::Display> DynamicInfoRow<T> {
+    pub fn new(title: &str, data: T, x_offset: u16, row_index: u16) -> Self {
+        Self {
+            title: title.to_string(),
+            data,
+            x_offset,
+            y_position: row_index * 3, // Each row takes 2 lines + 1 space
+        }
+    }
+
+    pub fn update(&mut self, data: T) {
+        self.data = data;
+    }
+
+    pub fn queue(&self, stdout: &mut std::io::Stdout) -> std::io::Result<()> {
+        queue!(
+            stdout,
+            cursor::MoveTo(self.x_offset + 2, self.y_position),
+            style::PrintStyledContent(self.title.as_str().white())
+        )?;
+        queue!(
+            stdout,
+            cursor::MoveTo(self.x_offset + 2, self.y_position + 1),
+            style::PrintStyledContent(self.data.to_string().white())
+        )?;
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct StaticInfoRow<T: std::fmt::Display> {
+    pub title: String,
+    pub data: T,
+    pub x_offset: u16,
+    pub y_position: u16,
+}
+
+impl<T: std::fmt::Display> StaticInfoRow<T> {
     pub fn new(title: &str, data: T, x_offset: u16, row_index: u16) -> Self {
         Self {
             title: title.to_string(),
