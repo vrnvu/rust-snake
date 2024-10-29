@@ -78,8 +78,23 @@ fn run_game(stdout: &mut std::io::Stdout, player_name: String) -> std::io::Resul
                 }
 
                 if let Some(KeyCode::Char('b')) = user_input {
-                    // TODO
-                    println!("magic!");
+                    if let Some(action) = state.actions.pop() {
+                        let reverse_action = Action::reverse(action);
+                        state.next(reverse_action);
+
+                        side_panel.update_score(state.score);
+
+                        game_grid.queue(stdout)?;
+                        side_panel.queue(stdout)?;
+                        state.queue(stdout)?;
+                        stdout.flush()?;
+
+                        if state.is_game_over() {
+                            break 'game_loop;
+                        }
+                    } else {
+                        break 'game_loop;
+                    }
                 }
             }
         }

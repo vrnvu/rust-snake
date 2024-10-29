@@ -42,29 +42,19 @@ impl GameState {
     }
 
     pub fn next(&mut self, action: Action) {
+        self.actions.push(action);
+
         if let Some(direction) = action.direction {
             self.snake.direction = direction;
         }
 
-        self.actions.push(action);
-
-        match self.snake.direction {
-            Direction::Up => self.snake.head.y -= 1,
-            Direction::Down => self.snake.head.y += 1,
-            Direction::Left => self.snake.head.x -= 1,
-            Direction::Right => self.snake.head.x += 1,
-        }
-
-        if !self.snake.tail.is_empty() {
-            self.snake.tail.push_front(action.head_pos);
-            self.snake.tail.pop_back();
-        }
-
-        if action.head_pos == self.food.position {
-            self.snake.tail.push_back(action.head_pos);
+        if self.snake.head == self.food.position {
+            self.snake.move_and_grow();
             self.food = Food::new(self.game_width, self.game_height);
             self.score += 1;
         }
+
+        self.snake.move_direction();
     }
 
     pub fn is_game_over(&self) -> bool {
@@ -125,6 +115,17 @@ impl Position {
     pub fn is_on_border(&self, width: u16, height: u16) -> bool {
         self.x == 0 || self.y == height - 1 || self.x == width - 1 || self.y == 0
     }
+
+    pub fn move_direction(&self, direction: Direction) -> Position {
+        let mut next = *self;
+        match direction {
+            Direction::Up => next.y -= 1,
+            Direction::Down => next.y += 1,
+            Direction::Left => next.x -= 1,
+            Direction::Right => next.x += 1,
+        }
+        next
+    }
 }
 
 #[derive(Debug)]
@@ -164,19 +165,20 @@ impl Snake {
     }
 
     pub fn move_direction(&mut self) {
-        let old_head = self.head.clone();
-
-        match self.direction {
-            Direction::Up => self.head.y -= 1,
-            Direction::Down => self.head.y += 1,
-            Direction::Left => self.head.x -= 1,
-            Direction::Right => self.head.x += 1,
-        }
+        let old_head = self.head;
+        self.head = self.head.move_direction(self.direction);
 
         if !self.tail.is_empty() {
             self.tail.push_front(old_head);
             self.tail.pop_back();
         }
+    }
+
+    pub fn move_and_grow(&mut self) {
+        let old_head = self.head;
+        self.head = self.head.move_direction(self.direction);
+
+        self.tail.push_front(old_head);
     }
 
     pub fn self_collision(&self) -> bool {
@@ -216,6 +218,7 @@ pub struct Action {
     pub head_pos: Position,
     pub direction: Option<Direction>,
     pub did_grow: bool,
+    pub is_reverse: bool,
 }
 
 impl Action {
@@ -224,6 +227,120 @@ impl Action {
             head_pos,
             direction,
             did_grow,
+            is_reverse: false,
         }
+    }
+
+    pub fn reverse(action: Action) -> Self {
+        let reverse_direction = match action.direction {
+            Some(Direction::Up) => Some(Direction::Down),
+            Some(Direction::Down) => Some(Direction::Up),
+            Some(Direction::Left) => Some(Direction::Right),
+            Some(Direction::Right) => Some(Direction::Left),
+            None => None,
+        };
+        Self {
+            head_pos: action.head_pos,
+            direction: reverse_direction,
+            did_grow: !action.did_grow,
+            is_reverse: true,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_empty_snake_movement() {
+        let mut snake = Snake::new(5, 5);
+        assert_eq!(snake.head, Position::new(5, 5));
+        assert!(snake.tail.is_empty());
+
+        snake.direction = Direction::Right;
+        snake.move_direction();
+        assert_eq!(snake.head, Position::new(6, 5));
+        assert!(snake.tail.is_empty());
+
+        snake.direction = Direction::Down;
+        snake.move_direction();
+        assert_eq!(snake.head, Position::new(6, 6));
+        assert!(snake.tail.is_empty());
+    }
+
+    #[test]
+    fn test_snake_with_tail_size_one() {
+        let mut snake = Snake::new(5, 5);
+        snake.tail.push_back(Position::new(4, 5));
+
+        snake.direction = Direction::Right;
+        snake.move_direction();
+
+        assert_eq!(snake.head, Position::new(6, 5));
+        assert_eq!(snake.tail.len(), 1);
+        assert_eq!(snake.tail.front().unwrap(), &Position::new(5, 5));
+
+        snake.direction = Direction::Right;
+        snake.move_direction();
+
+        assert_eq!(snake.head, Position::new(7, 5));
+        assert_eq!(snake.tail.len(), 1);
+        assert_eq!(snake.tail.front().unwrap(), &Position::new(6, 5));
+
+        snake.direction = Direction::Up;
+        snake.move_direction();
+
+        assert_eq!(snake.head, Position::new(7, 4));
+        assert_eq!(snake.tail.len(), 1);
+        assert_eq!(snake.tail.front().unwrap(), &Position::new(7, 5));
+
+        snake.direction = Direction::Up;
+        snake.move_direction();
+
+        assert_eq!(snake.head, Position::new(7, 3));
+        assert_eq!(snake.tail.len(), 1);
+        assert_eq!(snake.tail.front().unwrap(), &Position::new(7, 4));
+    }
+
+    #[test]
+    fn test_snake_with_tail_size_two() {
+        let mut snake = Snake::new(5, 5);
+        snake.tail.push_back(Position::new(4, 5));
+        snake.tail.push_back(Position::new(3, 5));
+
+        snake.direction = Direction::Right;
+        snake.move_direction();
+
+        assert_eq!(snake.head, Position::new(6, 5));
+        assert_eq!(snake.tail.len(), 2);
+        assert_eq!(snake.tail.front().unwrap(), &Position::new(5, 5));
+        assert_eq!(snake.tail.back().unwrap(), &Position::new(4, 5));
+
+        snake.direction = Direction::Right;
+        snake.move_direction();
+
+        assert_eq!(snake.head, Position::new(7, 5));
+        assert_eq!(snake.tail.len(), 2);
+        assert_eq!(snake.tail.front().unwrap(), &Position::new(6, 5));
+        assert_eq!(snake.tail.back().unwrap(), &Position::new(5, 5));
+
+        snake.direction = Direction::Up;
+        snake.move_direction();
+
+        assert_eq!(snake.head, Position::new(7, 4));
+        assert_eq!(snake.tail.len(), 2);
+        assert_eq!(snake.tail.front().unwrap(), &Position::new(7, 5));
+        assert_eq!(snake.tail.back().unwrap(), &Position::new(6, 5));
+    }
+
+    #[test]
+    fn test_snake_self_collision() {
+        let mut snake = Snake::new(5, 5);
+        snake.tail.push_back(Position::new(4, 5));
+        assert!(!snake.self_collision());
+
+        snake.tail.push_back(Position::new(5, 5));
+        assert!(snake.self_collision());
     }
 }
