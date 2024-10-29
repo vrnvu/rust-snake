@@ -1,5 +1,7 @@
 use crossterm::{
-    cursor, queue,
+    cursor,
+    event::KeyCode,
+    queue,
     style::{self, Stylize},
 };
 use rand::Rng;
@@ -44,11 +46,11 @@ impl GameState {
     pub fn next(&mut self, action: Action) {
         self.actions.push(action);
 
-        if let Some(direction) = action.direction {
-            self.snake.direction = direction;
+        if let Some(new_direction) = action.change_direction {
+            self.snake.direction = new_direction;
         }
 
-        if self.snake.head == self.food.position {
+        if action.must_grow {
             self.snake.move_and_grow();
             self.food = Food::new(self.game_width, self.game_height);
             self.score += 1;
@@ -62,6 +64,30 @@ impl GameState {
             .head
             .is_on_border(self.game_width, self.game_height)
             || self.snake.self_collision()
+    }
+
+    pub fn get_action(&self, user_input: Option<KeyCode>) -> Action {
+        let direction = user_input.and_then(|code| match code {
+            KeyCode::Up => Some(Direction::Up),
+            KeyCode::Down => Some(Direction::Down),
+            KeyCode::Left => Some(Direction::Left),
+            KeyCode::Right => Some(Direction::Right),
+            _ => None,
+        });
+
+        let must_grow = self.snake.head == self.food.position;
+
+        if direction.is_none() {
+            return Action::new(self.snake.head, None, must_grow);
+        }
+
+        let new_direction = direction.unwrap();
+        if new_direction != self.snake.direction && new_direction != self.snake.direction.reverse()
+        {
+            return Action::new(self.snake.head, Some(new_direction), must_grow);
+        }
+
+        Action::new(self.snake.head, None, must_grow)
     }
 }
 
@@ -93,12 +119,23 @@ impl GameGrid {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Direction {
     Up,
     Down,
     Left,
     Right,
+}
+
+impl Direction {
+    pub fn reverse(&self) -> Self {
+        match self {
+            Direction::Up => Direction::Down,
+            Direction::Down => Direction::Up,
+            Direction::Left => Direction::Right,
+            Direction::Right => Direction::Left,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -215,34 +252,31 @@ impl Food {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Action {
-    pub head_pos: Position,
-    pub direction: Option<Direction>,
-    pub did_grow: bool,
+    pub snake_head: Position,
+    pub change_direction: Option<Direction>,
+    pub must_grow: bool,
+    pub food_position: Position,
     pub is_reverse: bool,
 }
 
 impl Action {
-    pub fn new(head_pos: Position, direction: Option<Direction>, did_grow: bool) -> Self {
+    pub fn new(snake_head: Position, change_direction: Option<Direction>, must_grow: bool) -> Self {
         Self {
-            head_pos,
-            direction,
-            did_grow,
+            snake_head,
+            change_direction,
+            must_grow,
+            food_position: Position::new(0, 0),
             is_reverse: false,
         }
     }
 
     pub fn reverse(action: Action) -> Self {
-        let reverse_direction = match action.direction {
-            Some(Direction::Up) => Some(Direction::Down),
-            Some(Direction::Down) => Some(Direction::Up),
-            Some(Direction::Left) => Some(Direction::Right),
-            Some(Direction::Right) => Some(Direction::Left),
-            None => None,
-        };
+        let reverse_direction = action.change_direction.map(|d| d.reverse());
         Self {
-            head_pos: action.head_pos,
-            direction: reverse_direction,
-            did_grow: !action.did_grow,
+            snake_head: action.snake_head,
+            change_direction: reverse_direction,
+            must_grow: !action.must_grow,
+            food_position: action.food_position,
             is_reverse: true,
         }
     }
